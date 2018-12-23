@@ -1,20 +1,20 @@
 /**
  * @author mrdoob / http://mrdoob.com/
  * @author yomboprime / https://github.com/yomboprime/
- * 
- * 
+ *
+ *
  */
 
 THREE.LDrawLoader = ( function () {
 
 	function LineParser( line, lineNumber ) {
-		
+
 		this.line = line;
 		this.lineLength = line.length;
 		this.currentCharIndex = 0;
 		this.currentChar = ' ';
 		this.lineNumber = lineNumber;
-		
+
 	}
 
 	LineParser.prototype = {
@@ -26,7 +26,7 @@ THREE.LDrawLoader = ( function () {
 			while ( this.currentCharIndex < this.lineLength ) {
 
 				this.currentChar = this.line.charAt( this.currentCharIndex );
-				
+
 				if ( this.currentChar !== ' ' && this.currentChar !== '\t' ) {
 
 					return;
@@ -59,7 +59,7 @@ THREE.LDrawLoader = ( function () {
 			}
 
 			var pos1 = this.currentCharIndex;
-			
+
 			this.seekNonSpace();
 
 			return this.line.substring( pos0, pos1 );
@@ -85,12 +85,12 @@ THREE.LDrawLoader = ( function () {
 		},
 
 		getLineNumberString: function () {
-		
+
 			return this.lineNumber >= 0? " at line " + this.lineNumber: "";
 
 		}
 
-		
+
 	};
 
 	function sortByMaterial ( a, b ) {
@@ -216,7 +216,7 @@ THREE.LDrawLoader = ( function () {
 		// Temporary matrices
 		this.tempMatrix180 = new THREE.Matrix4().makeRotationX( Math.PI );
 		this.tempMatrix = new THREE.Matrix4();
-		
+
 
 	}
 
@@ -314,7 +314,7 @@ THREE.LDrawLoader = ( function () {
 					switch ( subobject.locationState ) {
 
 						case LDrawLoader.FILE_LOCATION_AS_IS:
-							newLocationState = LDrawLoader.FILE_LOCATION_NOT_FOUND;
+							newLocationState = subobject.locationState + 1;
 							break;
 
 						case LDrawLoader.FILE_LOCATION_TRY_PARTS:
@@ -351,7 +351,7 @@ THREE.LDrawLoader = ( function () {
 								subobject.fileName = subobject.fileName.toLowerCase();
 								subobjectURL = subobject.fileName;
 								subobject.triedLowerCase = true;
-								newLocationState = LDrawLoader.FILE_LOCATION_TRY_PARTS;
+								newLocationState = LDrawLoader.FILE_LOCATION_AS_IS;
 
 							}
 							break;
@@ -375,7 +375,7 @@ THREE.LDrawLoader = ( function () {
 
 								// Load next subobject
 								loadSubobject( parseScope.subobjects[ parseScope.subobjectIndex ] );
-	
+
 							}
 
 							return;
@@ -383,7 +383,7 @@ THREE.LDrawLoader = ( function () {
 					}
 
 					subobject.locationState = newLocationState;
-					scope.fileMap[ subobject.originalFileName ] = subobjectURL;
+					subobject.url = subobjectURL;
 
 					// Load the subobject
 					scope.load( subobjectURL, onSubobjectLoaded, undefined, onSubobjectError );
@@ -393,7 +393,7 @@ THREE.LDrawLoader = ( function () {
 				function onSubobjectLoaded( subobjectGroup ) {
 
 					var subobject = parseScope.subobjects[ parseScope.subobjectIndex ];
-					
+
 					if ( subobjectGroup === null ) {
 
 						// Try to reload
@@ -407,6 +407,8 @@ THREE.LDrawLoader = ( function () {
 					objGroup.add( subobjectGroup );
 					subobjectGroup.matrix.copy( subobject.matrix );
 					subobjectGroup.matrixAutoUpdate = false;
+
+					scope.fileMap[ subobject.originalFileName ] = subobject.url;
 
 					// Proceed to load the next subobject, or finish the parent object
 
@@ -468,13 +470,13 @@ THREE.LDrawLoader = ( function () {
 		},
 
 		newParseScopeLevel: function ( materials ) {
-		
+
 			// Adds a new scope level, assign materials to it and returns it
 
 			var matLib = {};
 
 			if ( materials ) {
-			
+
 				for ( var i = 0, n = materials.length; i < n; i ++ ) {
 
 					var material = materials[ i ];
@@ -539,7 +541,7 @@ THREE.LDrawLoader = ( function () {
 
 			// Given a colour code search its material in the parse scopes stack
 
-			if ( colourCode.startsWith( "0x2" ) ) { 
+			if ( colourCode.startsWith( "0x2" ) ) {
 
 				// Special 'direct' material value (RGB colour)
 
@@ -592,8 +594,8 @@ THREE.LDrawLoader = ( function () {
 
 		parseColourMetaDirective: function ( lineParser ) {
 
-			// Parses a colour definition and returns a THREE.Material or null if error 
-			
+			// Parses a colour definition and returns a THREE.Material or null if error
+
 			var code = null;
 
 			// Triangle and line colours
@@ -670,7 +672,7 @@ THREE.LDrawLoader = ( function () {
 
 							// Get the edge material for this triangle material
 							edgeMaterial = edgeMaterial.userData.edgeMaterial;
-							
+
 						}
 						break;
 
@@ -753,7 +755,7 @@ THREE.LDrawLoader = ( function () {
 					var hsl = specular.getHSL( { h: 0, s: 0, l: 0 } );
 
 					if ( finishType === LDrawLoader.FINISH_TYPE_DEFAULT ) {
-					
+
 						// Default plastic material with shiny specular
 						hsl.l = Math.min( 1, hsl.l + ( 1 - hsl.l ) * 0.12 );
 
@@ -995,7 +997,7 @@ THREE.LDrawLoader = ( function () {
 												keywords = [];
 
 											}
-											
+
 											newKeywords.forEach( function( keyword ) {
 
 												keywords.push( keyword.trim() );
@@ -1015,7 +1017,7 @@ THREE.LDrawLoader = ( function () {
 										currentEmbeddedText = '';
 
 									}
-									
+
 									break;
 
 								default:
@@ -1055,31 +1057,27 @@ THREE.LDrawLoader = ( function () {
 						);
 
 						var fileName = lp.getRemainingString().trim().replace( "\\", "/" );
-						var locationState = LDrawLoader.FILE_LOCATION_TRY_PARTS;
 
 						if ( scope.fileMap[ fileName ] ) {
 
-							// Found the subobject path in the preloaded file path map, set the path as "AS_IS"
+							// Found the subobject path in the preloaded file path map
 							fileName = scope.fileMap[ fileName ];
-							locationState = LDrawLoader.FILE_LOCATION_AS_IS;
 
 						}
 						else {
 
-							// Standardized subfolders 
+							// Standardized subfolders
 							if ( fileName.startsWith( 's/' ) ) {
 
 								fileName = 'parts/' + fileName;
-								locationState = LDrawLoader.FILE_LOCATION_AS_IS;
 
 							}
 							else if ( fileName.startsWith( '48/' ) ) {
 
 								fileName = 'p/' + fileName;
-								locationState = LDrawLoader.FILE_LOCATION_AS_IS;
 
 							}
-	
+
 						}
 
 						subobjects.push( {
@@ -1087,7 +1085,8 @@ THREE.LDrawLoader = ( function () {
 							matrix: matrix,
 							fileName: fileName,
 							originalFileName: fileName,
-							locationState: locationState,
+							locationState: LDrawLoader.FILE_LOCATION_AS_IS,
+							url: null,
 							triedLowerCase: false
 						} );
 
@@ -1119,7 +1118,7 @@ THREE.LDrawLoader = ( function () {
 							v1: new THREE.Vector3( parseFloat( lp.getToken() ), parseFloat( lp.getToken() ), parseFloat( lp.getToken() ) ),
 							v2: new THREE.Vector3( parseFloat( lp.getToken() ), parseFloat( lp.getToken() ), parseFloat( lp.getToken() ) )
 						} );
-						
+
 						break;
 
 					// Line type 4: Quadrilateral
@@ -1158,7 +1157,7 @@ THREE.LDrawLoader = ( function () {
 					default:
 						throw 'LDrawLoader: Unknown line type "' + lineType + '"' + lp.getLineNumberString() + '.';
 						break;
-						
+
 				}
 
 			}
@@ -1166,7 +1165,7 @@ THREE.LDrawLoader = ( function () {
 			if ( parsingEmbeddedFiles ) {
 
 				this.subobjectCache[ currentEmbeddedFileName ] = currentEmbeddedText;
-	
+
 			}
 
 			//
