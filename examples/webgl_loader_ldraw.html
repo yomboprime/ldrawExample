@@ -39,7 +39,7 @@
 
 		<script>
 
-			var container, stats;
+			var container, stats, progressBar, progressBarDiv;
 
 			var camera, scene, renderer, pointLight, controls, gui, guiData;
 
@@ -132,6 +132,15 @@
 
 				window.addEventListener( 'resize', onWindowResize, false );
 
+				progressBarDiv = document.createElement( 'div' );
+				progressBarDiv.innerText = "Loading...";
+				progressBarDiv.style.fontSize = "3em";
+				progressBarDiv.style.display = "block";
+				progressBarDiv.style.position = "absolute";
+				progressBarDiv.style.top = "50%";
+				progressBarDiv.style.left = "50%";
+
+
 				// load materials and then the model
 
 				reloadObject( true );
@@ -147,6 +156,9 @@
 				}
 
 				model = null;
+
+				updateProgressBar( 0 );
+				showProgressBar();
 
 				var lDrawLoader = new THREE.LDrawLoader();
 				lDrawLoader
@@ -215,6 +227,8 @@
 
 						pointLight.position.normalize().multiplyScalar( radius * 3 );
 
+						hideProgressBar();
+
 					}, onProgress, onError );
 
 			}
@@ -247,8 +261,9 @@
 
 				if ( xhr.lengthComputable ) {
 
-					var percentComplete = xhr.loaded / xhr.total * 100;
-					console.log( Math.round( percentComplete, 2 ) + '% downloaded' );
+					updateProgressBar( xhr.loaded / xhr.total );
+
+					console.log( Math.round( xhr.loaded / xhr.total * 100, 2 ) + '% downloaded' );
 
 				}
 
@@ -257,6 +272,26 @@
 			function onError ( error ) {
 
 				console.log( "Error loading model. " + error );
+
+			}
+
+			function showProgressBar () {
+
+				document.body.appendChild( progressBarDiv );
+
+			}
+
+			function hideProgressBar () {
+
+				document.body.removeChild( progressBarDiv );
+
+			}
+
+			function updateProgressBar ( fraction ) {
+
+				setTimeout( function() {
+					progressBarDiv.innerText = 'Loading... ' + Math.round( fraction * 100, 2 ) + '%';
+				}, 0 );
 
 			}
 

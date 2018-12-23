@@ -281,18 +281,46 @@ THREE.LDrawLoader = ( function () {
 
 				if ( parseScope.numSubobjects > 0 ) {
 
-					loadSubobject( parseScope.subobjects[ 0 ] );
+					// Load the first subobject
+					var subobjectGroup = loadSubobject( parseScope.subobjects[ 0 ], true );
+
+					// Optimization for loading pack: If subobjects are obtained from cache, keep loading them synchronously
+					if ( subobjectGroup ) {
+
+						while ( subobjectGroup && parseScope.subobjectIndex < parseScope.numSubobjects - 1 ) {
+
+							subobjectGroup = loadSubobject( parseScope.subobjects[ ++ parseScope.subobjectIndex ], true );
+
+						}
+
+						if ( subobjectGroup ) {
+
+							scope.removeScopeLevel();
+							if ( onProcessed ) {
+
+								onProcessed( objGroup );
+
+							}
+
+						}
+					}
 
 				}
 				else {
 
 					// No subobjects, finish object
 					scope.removeScopeLevel();
-					onProcessed( objGroup );
+					if ( onProcessed ) {
+
+						onProcessed( objGroup );
+
+					}
 
 				}
 
-				function loadSubobject ( subobject ) {
+				return objGroup;
+
+				function loadSubobject ( subobject, sync ) {
 
 					parseScope.mainColourCode = subobject.material.userData.code;
 					parseScope.mainEdgeColourCode = subobject.material.userData.edgeMaterial.userData.code;
@@ -301,9 +329,12 @@ THREE.LDrawLoader = ( function () {
 					// If subobject was cached previously, use the cached one
 					var cached = scope.subobjectCache[ subobject.originalFileName ];
 					if ( cached ) {
-						processObject( cached, onSubobjectLoaded );
+						var subobjectGroup = processObject( cached, sync ? undefined : onSubobjectLoaded );
+						if ( sync ) {
+							addSubobject( subobject, subobjectGroup );
+							return subobjectGroup;
+						}
 						return;
-
 					}
 
 					// Adjust file name to locate the subobject file path in standard locations (always under directory scope.path)
@@ -402,13 +433,8 @@ THREE.LDrawLoader = ( function () {
 
 					}
 
-					// Process the subobject just loaded
-					subobjectGroup.name = subobject.fileName;
-					objGroup.add( subobjectGroup );
-					subobjectGroup.matrix.copy( subobject.matrix );
-					subobjectGroup.matrixAutoUpdate = false;
-
-					scope.fileMap[ subobject.originalFileName ] = subobject.url;
+					// Add the subobject just loaded
+					addSubobject( subobject, subobjectGroup );
 
 					// Proceed to load the next subobject, or finish the parent object
 
@@ -425,6 +451,17 @@ THREE.LDrawLoader = ( function () {
 						onProcessed( objGroup );
 
 					}
+
+				}
+
+				function addSubobject ( subobject, subobjectGroup ) {
+
+					subobjectGroup.name = subobject.fileName;
+					objGroup.add( subobjectGroup );
+					subobjectGroup.matrix.copy( subobject.matrix );
+					subobjectGroup.matrixAutoUpdate = false;
+
+					scope.fileMap[ subobject.originalFileName ] = subobject.url;
 
 				}
 
